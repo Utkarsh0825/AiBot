@@ -14,6 +14,13 @@ from dotenv import load_dotenv  # To load variables from a .env file
 # Load environment variables from .env file (for development)
 load_dotenv()
 
+# In app.py, after load_dotenv() and before initializing SQLAlchemy:
+if "DATABASE_URL" in os.environ:
+    app.config["SQLALCHEMY_DATABASE_URI"] = os.environ["DATABASE_URL"]
+else:
+    app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("DATABASE_URI", "sqlite:///aibot.db")
+
+
 app = Flask(__name__)
 
 # Configure the app using environment variables
