@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AI Interview Bot</title>
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+  
+  <!-- Font Awesome -->
+  <!-- Replace YOUR_KIT_CODE with your actual FontAwesome kit code -->
+  <script src="https://kit.fontawesome.com/YOUR_KIT_CODE.js" crossorigin="anonymous"></script>
+
+  <style>
+    body {
+      font-family: 'Poppins', sans-serif;
+    }
+  </style>
+</head>
+<body class="bg-gray-100 text-gray-900">
+  <nav class="bg-white shadow-md p-4 flex justify-between items-center">
+    <a class="text-2xl font-bold text-blue-600" href="{{ url_for('index') }}">AI Interview Bot</a>
+    <ul class="hidden md:flex space-x-6">
+      <li><a href="{{ url_for('dashboard') }}" class="hover:text-blue-500">Dashboard</a></li>
+      {% if session.get('user_id') %}
+        <li><a href="{{ url_for('logout') }}" class="text-red-500 hover:underline">Logout</a></li>
+      {% else %}
+        <li><a href="{{ url_for('signup') }}" class="hover:text-blue-500">Sign Up</a></li>
+        <li><a href="{{ url_for('login') }}" class="hover:text-blue-500">Login</a></li>
+      {% endif %}
+    </ul>
+    <button id="mobileMenu" class="md:hidden text-blue-600">
+      <i class="fas fa-bars text-2xl"></i>
+    </button>
+  </nav>
+  <div class="container mx-auto p-6">
+    {% block content %}{% endblock %}
+  </div>
+  <script>
+    document.getElementById("mobileMenu").addEventListener("click", function() {
+      alert("Implement Mobile Menu Here!");
+    });
+  </script>
+</body>
+</html>

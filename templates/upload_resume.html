@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="flex flex-col items-center justify-center min-h-screen">
+  <div class="bg-white p-8 rounded-lg shadow-lg w-full max-w-md">
+    <h2 class="text-2xl font-bold mb-6 text-center">Upload Your Resume</h2>
+    <form action="{{ url_for('upload_resume') }}" method="post" enctype="multipart/form-data">
+      <div class="mb-4">
+        <label for="resume" class="block text-gray-700 font-medium">Choose your resume (PDF or DOCX):</label>
+        <input type="file" class="mt-2 w-full border border-gray-300 p-2 rounded" id="resume" name="resume" accept=".pdf, .docx" required>
+      </div>
+      <button type="submit" class="w-full bg-blue-600 text-white p-3 rounded-lg hover:bg-blue-700 transition">Upload Resume</button>
+    </form>
+  </div>
+</div>
+{% endblock %}

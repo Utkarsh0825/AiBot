@@ -1,0 +1,245 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mx-auto p-6 text-center">
+  <h2 class="text-3xl font-bold mb-4">AI Interview Session</h2>
+  <p class="mb-6">The AI will ask each question and immediately start recording once it finishes speaking. Press <strong>Stop Recording</strong> to end your answer, then click <strong>Next Question</strong> to proceed.</p>
+
+  <!-- Question Display -->
+  <div class="mb-4">
+    <h4 id="questionCaption" class="text-xl text-blue-600 font-semibold"></h4>
+  </div>
+
+  <!-- Status Message -->
+  <div class="mb-4">
+    <p><strong>Status:</strong> <span id="statusMsg" class="text-gray-700">Waiting to start...</span></p>
+  </div>
+
+  <!-- Magical Recorder UI -->
+  <div class="flex justify-center mb-4">
+    <div class="relative w-32 h-32 flex items-center justify-center">
+      <div id="micRadial" class="absolute inset-0 rounded-full border-8 border-gray-300"></div>
+      <i class="fas fa-microphone text-4xl text-gray-600"></i>
+    </div>
+  </div>
+
+  <!-- Recording Controls -->
+  <div class="flex justify-center space-x-4 my-6">
+    <button id="startInterviewBtn" class="bg-gradient-to-r from-blue-500 to-purple-600 text-white px-6 py-2 rounded hover:shadow-xl transition-transform transform hover:-translate-y-1">
+      Start Interview
+    </button>
+    <button id="stopRecordingBtn" class="bg-red-600 text-white px-6 py-2 rounded hover:bg-red-700 transition hidden">Stop Recording</button>
+    <button id="nextQuestionBtn" class="bg-gray-600 text-white px-6 py-2 rounded hover:bg-gray-700 transition hidden">Next Question</button>
+    <button id="stopInterviewBtn" class="bg-yellow-500 text-white px-6 py-2 rounded hover:bg-yellow-600 transition hidden">Stop Interview</button>
+  </div>
+</div>
+
+<!-- Confetti (via canvas-confetti) -->
+<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js"></script>
+
+<script>
+  let voices = [];
+  window.speechSynthesis.onvoiceschanged = () => {
+    voices = window.speechSynthesis.getVoices();
+    console.log("Voices loaded:", voices);
+  };
+
+  const questionArray = JSON.parse('{{ questions|tojson|safe }}');
+  let currentQuestionIndex = 0;
+  const totalQuestions = questionArray.length;
+  const userName = "{{ user.first_name }} {{ user.last_name }}";
+
+  // Speech Recognition
+  const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+  recognition.lang = 'en-US';
+
+  // Magical radial volume meter
+  let micRadialElement;
+  let micRadialAnimationFrame;
+  let answerStream;
+  let answerAudioContext;
+  let answerAnalyser;
+  let answerDataArray;
+
+  // UI Elements
+  const questionCaption = document.getElementById('questionCaption');
+  const statusMsg = document.getElementById('statusMsg');
+  const startInterviewBtn = document.getElementById('startInterviewBtn');
+  const stopRecordingBtn = document.getElementById('stopRecordingBtn');
+  const nextQuestionBtn = document.getElementById('nextQuestionBtn');
+  const stopInterviewBtn = document.getElementById('stopInterviewBtn');
+  micRadialElement = document.getElementById('micRadial');
+
+  let utteranceFallbackTimeout;
+
+  startInterviewBtn.addEventListener('click', () => {
+    startInterviewBtn.classList.add("hidden");
+    stopInterviewBtn.classList.remove("hidden");
+    nextQuestion();
+  });
+
+  stopRecordingBtn.addEventListener('click', () => {
+    statusMsg.innerText = "Stopping recording...";
+    recognition.stop();
+    stopRadialMeter();
+    stopRecordingBtn.classList.add("hidden");
+    statusMsg.innerText = "Recording saved. Click Next Question to proceed.";
+    nextQuestionBtn.classList.remove("hidden");
+  });
+
+  nextQuestionBtn.addEventListener('click', () => {
+    nextQuestionBtn.classList.add("hidden");
+    nextQuestion();
+  });
+
+  stopInterviewBtn.addEventListener('click', () => {
+    window.location.href = "{{ url_for('stop_interview') }}";
+  });
+
+  recognition.onresult = function(event) {
+    const transcript = event.results[0][0].transcript;
+    const questionText = questionArray[currentQuestionIndex - 1];
+    sendAnswerToServer(questionText, transcript);
+  };
+
+  recognition.onerror = function(event) {
+    console.error("Recognition error:", event.error);
+    const questionText = questionArray[currentQuestionIndex - 1];
+    sendAnswerToServer(questionText, "Error or no response");
+  };
+
+  recognition.onend = function() {
+    statusMsg.innerText += " (Recording ended)";
+    clearTimeout(utteranceFallbackTimeout);
+  };
+
+  function nextQuestion() {
+    if (currentQuestionIndex >= totalQuestions) {
+      interviewComplete();
+      return;
+    }
+    const questionText = questionArray[currentQuestionIndex];
+    currentQuestionIndex++;
+    askQuestion(questionText);
+  }
+
+  function askQuestion(questionText) {
+    questionCaption.innerText = questionText;
+    statusMsg.innerText = "Asking question...";
+    const utterance = new SpeechSynthesisUtterance(questionText);
+    utterance.lang = 'en-US';
+    if (voices.length) {
+      utterance.voice = voices[0];
+    }
+    utterance.onend = function() {
+      clearTimeout(utteranceFallbackTimeout);
+      startRecording(); // Immediately record
+    };
+    speechSynthesis.speak(utterance);
+    utteranceFallbackTimeout = setTimeout(() => {
+      startRecording();
+    }, 5000);
+  }
+
+  async function startRecording() {
+    statusMsg.innerText = "Recording... Please speak, then press Stop Recording.";
+    try {
+      answerStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      answerAudioContext = new AudioContext();
+      const source = answerAudioContext.createMediaStreamSource(answerStream);
+      answerAnalyser = answerAudioContext.createAnalyser();
+      answerAnalyser.fftSize = 512;
+      source.connect(answerAnalyser);
+      answerDataArray = new Uint8Array(answerAnalyser.fftSize);
+      updateRadialMeter();
+    } catch (err) {
+      console.error("Error starting answer volume meter:", err);
+    }
+    recognition.start();
+    stopRecordingBtn.classList.remove("hidden");
+  }
+
+  function updateRadialMeter() {
+    if (answerAnalyser) {
+      answerAnalyser.getByteFrequencyData(answerDataArray);
+      let sum = 0;
+      for (let i = 0; i < answerDataArray.length; i++) {
+        sum += answerDataArray[i];
+      }
+      let average = sum / answerDataArray.length;
+      let volume = Math.min(100, (average / 255) * 100);
+
+      // Convert volume (0-100) to an angle (0-360)
+      let angle = (volume / 100) * 360;
+      // We'll apply it as a conic gradient
+      micRadialElement.style.background = `conic-gradient(
+        rgba(59,130,246,0.2) ${angle}deg,
+        #e5e7eb ${angle}deg 360deg
+      )`;
+
+      micRadialAnimationFrame = requestAnimationFrame(updateRadialMeter);
+    }
+  }
+
+  function stopRadialMeter() {
+    if (answerStream) {
+      answerStream.getTracks().forEach(track => track.stop());
+      answerStream = null;
+    }
+    if (answerAudioContext) {
+      answerAudioContext.close();
+      answerAudioContext = null;
+    }
+    if (micRadialAnimationFrame) {
+      cancelAnimationFrame(micRadialAnimationFrame);
+      micRadialAnimationFrame = null;
+    }
+    micRadialElement.style.background = "";
+  }
+
+  function sendAnswerToServer(question, answer) {
+    fetch("{{ url_for('store_answer') }}", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ question: question, answer: answer })
+    })
+    .then(response => response.json())
+    .then(data => {
+      console.log("Answer stored:", data);
+    })
+    .catch(error => {
+      console.error("Error storing answer:", error);
+    });
+  }
+
+  function interviewComplete() {
+    questionCaption.innerText = "Interview complete!";
+    statusMsg.innerText = `Congratulations, ${userName}! You have answered all questions.`;
+    stopRecordingBtn.classList.add("hidden");
+    nextQuestionBtn.classList.add("hidden");
+    stopInterviewBtn.classList.add("hidden");
+    showConfetti();
+  }
+
+  function showConfetti() {
+    const duration = 3000;
+    const end = Date.now() + duration;
+    (function frame() {
+      confetti({
+        particleCount: 5,
+        angle: 60,
+        spread: 55,
+        origin: { x: 0 }
+      });
+      confetti({
+        particleCount: 5,
+        angle: 120,
+        spread: 55,
+        origin: { x: 1 }
+      });
+      if (Date.now() < end) {
+        requestAnimationFrame(frame);
+      }
+    }());
+  }
+</script>
+{% endblock %}

@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mx-auto p-6 bg-white rounded-lg shadow-md">
+  <h2 class="text-3xl font-bold mb-4 text-center">AI Interview Setup</h2>
+  <p class="text-center mb-6">Select your interview difficulty and test your speaker & microphone before starting.</p>
+  <form method="POST" action="{{ url_for('interview_setup') }}">
+    <div class="mb-4">
+      <label for="difficulty" class="block text-gray-700 font-medium">Select Difficulty:</label>
+      <select class="mt-2 w-full border border-gray-300 p-2 rounded" name="difficulty" id="difficulty" required>
+        <option value="easy">Easy</option>
+        <option value="medium" selected>Medium</option>
+        <option value="hard">Hard</option>
+      </select>
+    </div>
+
+    <!-- Speaker Test -->
+    <div class="mb-4">
+      <label class="block text-gray-700 font-medium">Speaker Test:</label>
+      <button type="button" class="mt-2 bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition" onclick="testSpeaker()">
+        Test Speaker
+      </button>
+      <div id="speakerCaption" class="mt-2 text-sm text-gray-500"></div>
+    </div>
+
+    <!-- Microphone Test with Progress Bar -->
+    <div class="mb-6">
+      <label class="block text-gray-700 font-medium">Microphone Test:</label>
+      <div class="flex space-x-2 mt-2">
+        <button type="button" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition" onclick="startMicTest()">
+          Start Mic Test
+        </button>
+        <button type="button" class="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 transition" onclick="stopMicTest()">
+          Stop Mic Test
+        </button>
+      </div>
+      <div class="w-full mt-3">
+        <div class="w-72 mx-auto h-2 bg-gray-200 rounded">
+          <div id="micVolumeBar" class="h-full bg-red-500 rounded" style="width: 0%;"></div>
+        </div>
+      </div>
+      <div id="micCaption" class="mt-2 text-sm text-gray-500"></div>
+    </div>
+
+    <button type="submit" class="w-full bg-green-600 text-white py-3 rounded-lg hover:bg-green-700 transition">
+      Proceed to AI Interview
+    </button>
+  </form>
+</div>
+
+<script>
+  function testSpeaker() {
+    const utterance = new SpeechSynthesisUtterance("This is a speaker test. If you can hear this, your speaker is working correctly.");
+    utterance.lang = 'en-US';
+    utterance.onend = function() {
+      document.getElementById('speakerCaption').innerText = "Speaker test completed.";
+    };
+    speechSynthesis.speak(utterance);
+  }
+
+  let micTestStream;
+  let micAudioContext;
+  let micAnalyser;
+  let micDataArray;
+  let micAnimationFrame;
+
+  async function startMicTest() {
+    document.getElementById('micCaption').innerText = "Mic test in progress...";
+    try {
+      micTestStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      micAudioContext = new AudioContext();
+      const source = micAudioContext.createMediaStreamSource(micTestStream);
+      micAnalyser = micAudioContext.createAnalyser();
+      micAnalyser.fftSize = 512;
+      source.connect(micAnalyser);
+      micDataArray = new Uint8Array(micAnalyser.fftSize);
+      updateMicVolume();
+    } catch (err) {
+      console.error("Error accessing microphone:", err);
+      document.getElementById('micCaption').innerText = "Error accessing microphone: " + err;
+    }
+  }
+
+  function stopMicTest() {
+    if (micTestStream) {
+      micTestStream.getTracks().forEach(track => track.stop());
+      micTestStream = null;
+    }
+    if (micAudioContext) {
+      micAudioContext.close();
+      micAudioContext = null;
+    }
+    if (micAnimationFrame) {
+      cancelAnimationFrame(micAnimationFrame);
+      micAnimationFrame = null;
+    }
+    document.getElementById('micVolumeBar').style.width = "0%";
+    document.getElementById('micCaption').innerText = "Mic test stopped.";
+  }
+
+  function updateMicVolume() {
+    if (micAnalyser) {
+      micAnalyser.getByteFrequencyData(micDataArray);
+      let sum = 0;
+      for (let i = 0; i < micDataArray.length; i++) {
+        sum += micDataArray[i];
+      }
+      let average = sum / micDataArray.length;
+      let volume = (average / 255) * 100;
+      document.getElementById('micVolumeBar').style.width = volume + '%';
+    }
+    micAnimationFrame = requestAnimationFrame(updateMicVolume);
+  }
+</script>
+{% endblock %}

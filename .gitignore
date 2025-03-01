@@ -1,0 +1,12 @@
+# Python cache
+__pycache__/
+*.pyc
+
+# Environment files
+.env
+instance/
+interviewbot_env/
+venv/
+
+# Large or personal data
+uploads/

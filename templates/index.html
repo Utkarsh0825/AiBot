@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="h-screen flex flex-col items-center justify-center text-center bg-gradient-to-r from-blue-500 to-purple-500 text-white">
+  <h1 class="text-5xl font-bold animate-bounce">Welcome to AI Interview Bot</h1>
+  <p class="mt-4 text-lg">Your personal AI-powered interview preparation tool.</p>
+  <div class="mt-6">
+    <a href="{{ url_for('signup') }}" class="bg-white text-blue-600 px-6 py-3 rounded-lg font-bold text-lg shadow-lg hover:bg-gray-100 transition">
+      Get Started
+    </a>
+  </div>
+</section>
+{% endblock %}

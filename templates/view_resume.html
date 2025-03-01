@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mx-auto p-6 bg-white rounded-lg shadow-md">
+  <h2 class="text-2xl font-bold mb-4">{{ resume.original_filename }}</h2>
+  <p class="text-sm text-gray-600">Uploaded on {{ resume.timestamp.strftime('%Y-%m-%d %H:%M:%S') }}</p>
+  <hr class="my-4">
+  <pre class="whitespace-pre-wrap text-gray-800">{{ text_content }}</pre>
+  <div class="mt-6 text-center">
+    <a href="{{ url_for('dashboard') }}" class="bg-gray-600 text-white px-6 py-3 rounded-lg hover:bg-gray-700 transition">Back to Dashboard</a>
+  </div>
+</div>
+{% endblock %}
