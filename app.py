@@ -14,24 +14,24 @@ from dotenv import load_dotenv  # To load variables from a .env file
 # Load environment variables from .env file (for development)
 load_dotenv()
 
-# In app.py, after load_dotenv() and before initializing SQLAlchemy:
+# Create the Flask app
+app = Flask(__name__)
+
+# Configure the app using environment variables
+app.secret_key = os.environ.get("SECRET_KEY", "default_secret_key")
+# Use DATABASE_URL if available (e.g., from Render's Postgres addon), otherwise fallback to DATABASE_URI
 if "DATABASE_URL" in os.environ:
     app.config["SQLALCHEMY_DATABASE_URI"] = os.environ["DATABASE_URL"]
 else:
     app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("DATABASE_URI", "sqlite:///aibot.db")
-
-
-app = Flask(__name__)
-
-# Configure the app using environment variables
-app.secret_key = os.environ.get("SECRET_KEY", "default_secret_key")  # Replace with secure key in production
-app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get("DATABASE_URI", "sqlite:///aibot.db")
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
+# Configure uploads folder
 UPLOAD_FOLDER = os.path.join(os.getcwd(), 'uploads')
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
+# Initialize SQLAlchemy
 db = SQLAlchemy(app)
 
 # ------------------ MODELS ------------------
